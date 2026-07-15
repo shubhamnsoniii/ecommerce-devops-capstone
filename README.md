@@ -56,10 +56,11 @@ This project is a cloud-native e-commerce application built using a microservice
 - Centralized Logging using Loki & Promtail
 - Version Control with Git & GitHub
 
+---
 
 ## Project Architecture
 
-
+```text
                 GitHub
                    │
                    ▼
@@ -83,22 +84,23 @@ Monitoring Stack
 
 Prometheus → Grafana
 Promtail → Loki → Grafana
+```
 
-
+---
 
 ## Getting Started
 
 ### Clone the repository
 
-bash
+```bash
 git clone https://github.com/yourusername/ecommerce-devops-capstone.git
-
+```
 
 ### Start the application
 
-bash
+```bash
 docker compose up -d
-
+```
 
 ### Access Services
 
@@ -125,6 +127,6 @@ docker compose up -d
 
 ## Author
 
-Shubham N Soni
+**Shubham N Soni**
 
-DevOps Engineer | Docker | Jenkins | Kubernetes | .NET | React | Prometheus | Grafana | Loki
+DevOps Engineer | Docker | Jenkins | Kubernetes | AWS | AZURE | Python | .NET | React | Prometheus | Grafana | Loki
