@@ -93,7 +93,7 @@ Promtail → Loki → Grafana
 ### Clone the repository
 
 ```bash
-git clone https://github.com/yourusername/ecommerce-devops-capstone.git
+git clone https://github.com/shubhamnsoniii/ecommerce-devops-capstone.git
 ```
 
 ### Start the application
