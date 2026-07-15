@@ -13,7 +13,8 @@ This project is a cloud-native e-commerce application built using a microservice
 ## Tech Stack
 
 ### Backend
-- ASP.NET Core (.NET)
+- Node.js
+- Express.js
 - REST APIs
 
 ### Frontend
