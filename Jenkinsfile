@@ -72,11 +72,9 @@ pipeline {
 
         stage('Health Check') {
             steps {
-
-                echo 'Checking Product API...'
-
+			
                 bat '''
-                curl http://localhost:5000/products
+                curl --fail http://localhost:5000/products
                 '''
             }
         }
