@@ -28,6 +28,7 @@ pipeline {
         stage('Build Docker Images') {
             steps {
                 dir("${env.PROJECT_DIR}") {
+
                     echo 'Building Docker images...'
 
                     bat 'docker compose build'
@@ -41,9 +42,7 @@ pipeline {
 
                     echo 'Stopping existing containers...'
 
-                    bat '''
-                    docker compose down --remove-orphans
-                    '''
+                    bat 'docker compose down --remove-orphans'
                 }
             }
         }
@@ -54,9 +53,7 @@ pipeline {
 
                     echo 'Starting application...'
 
-                    bat '''
-                    docker compose up -d
-                    '''
+                    bat 'docker compose up -d'
                 }
             }
         }
@@ -70,23 +67,52 @@ pipeline {
             }
         }
 
+        stage('Wait for Application') {
+            steps {
+
+                echo 'Waiting 30 seconds for services to initialize...'
+
+                bat 'timeout /t 30 /nobreak'
+            }
+        }
+
         stage('Health Check') {
             steps {
-			
-                bat '''
-                curl --fail http://localhost:5000/products
-                '''
+                script {
+
+                    def retries = 10
+
+                    for (int i = 1; i <= retries; i++) {
+
+                        def status = bat(
+                            script: '''
+@echo off
+curl --silent --fail http://localhost:5000/products >nul
+''',
+                            returnStatus: true
+                        )
+
+                        if (status == 0) {
+                            echo "✅ Product Service is healthy."
+                            return
+                        }
+
+                        echo "Waiting for Product Service... Attempt ${i}/${retries}"
+
+                        bat 'timeout /t 5 /nobreak'
+                    }
+
+                    error("❌ Product Service failed health check.")
+                }
             }
         }
 
         stage('Cleanup') {
             steps {
 
-                echo 'Removing unused Docker images...'
+                echo 'Cleaning unused Docker images...'
 
-                bat '''
-                docker image prune -f
-                '''
+                bat 'docker image prune -f'
             }
         }
     }
@@ -96,14 +122,14 @@ pipeline {
         success {
 
             echo '========================================='
-            echo 'Deployment completed successfully.'
+            echo '✅ Deployment completed successfully.'
             echo '========================================='
         }
 
         failure {
 
             echo '========================================='
-            echo 'Deployment failed.'
+            echo '❌ Deployment failed.'
             echo '========================================='
         }
 
