@@ -72,7 +72,7 @@ pipeline {
 
                 echo 'Waiting 30 seconds for services to initialize...'
 
-                bat 'timeout /t 30 /nobreak'
+                sleep time: 30, unit: 'SECONDS'
             }
         }
 
@@ -85,10 +85,7 @@ pipeline {
                     for (int i = 1; i <= retries; i++) {
 
                         def status = bat(
-                            script: '''
-@echo off
-curl --silent --fail http://localhost:5000/products >nul
-''',
+                            script: '@echo off\r\ncurl --silent --fail http://localhost:5000/products >nul',
                             returnStatus: true
                         )
 
@@ -97,9 +94,9 @@ curl --silent --fail http://localhost:5000/products >nul
                             return
                         }
 
-                        echo "Waiting for Product Service... Attempt ${i}/${retries}"
+                         echo "Attempt ${i}/${retries} failed. Waiting 5 seconds..."
 
-                        bat 'timeout /t 5 /nobreak'
+                        sleep time: 5, unit: 'SECONDS'
                     }
 
                     error("❌ Product Service failed health check.")
