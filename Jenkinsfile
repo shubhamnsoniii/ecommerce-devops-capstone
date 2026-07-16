@@ -22,5 +22,33 @@ pipeline {
                 bat 'docker compose build'
             }
         }
+
+        stage('Stop Existing Containers') {
+            steps {
+                bat 'docker compose down'
+            }
+        }
+
+        stage('Deploy Application') {
+            steps {
+                bat 'docker compose up -d'
+            }
+        }
+
+        stage('Verify Deployment') {
+            steps {
+                bat 'docker ps'
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Application deployed successfully!'
+        }
+
+        failure {
+            echo 'Pipeline failed.'
+        }
     }
 }
