@@ -9,55 +9,111 @@ pipeline {
 
         stage('Checkout Source') {
             steps {
-                echo 'Checking out source code...'
+                echo '========================================='
+                echo 'Checking out latest source code...'
+                echo '========================================='
+                checkout scm
             }
         }
 
         stage('Verify Docker') {
             steps {
+                echo 'Verifying Docker installation...'
+
                 bat 'docker --version'
                 bat 'docker compose version'
             }
         }
 
-        stage('Build Images') {
+        stage('Build Docker Images') {
             steps {
                 dir("${env.PROJECT_DIR}") {
+                    echo 'Building Docker images...'
+
                     bat 'docker compose build'
                 }
             }
         }
 
-        stage('Deploy') {
+        stage('Stop Existing Containers') {
             steps {
                 dir("${env.PROJECT_DIR}") {
-                    bat 'docker compose down'
-                    bat 'docker compose up -d'
+
+                    echo 'Stopping existing containers...'
+
+                    bat '''
+                    docker compose down --remove-orphans
+                    '''
                 }
             }
         }
 
-        stage('Verify Deployment') {
+        stage('Deploy Application') {
             steps {
+                dir("${env.PROJECT_DIR}") {
+
+                    echo 'Starting application...'
+
+                    bat '''
+                    docker compose up -d
+                    '''
+                }
+            }
+        }
+
+        stage('Verify Containers') {
+            steps {
+
+                echo 'Checking running containers...'
+
                 bat 'docker ps'
             }
         }
 
+        stage('Health Check') {
+            steps {
+
+                echo 'Checking Product API...'
+
+                bat '''
+                curl http://localhost:5000/products
+                '''
+            }
+        }
+
+        stage('Cleanup') {
+            steps {
+
+                echo 'Removing unused Docker images...'
+
+                bat '''
+                docker image prune -f
+                '''
+            }
+        }
     }
 
     post {
 
         success {
+
+            echo '========================================='
             echo 'Deployment completed successfully.'
+            echo '========================================='
         }
 
         failure {
+
+            echo '========================================='
             echo 'Deployment failed.'
+            echo '========================================='
         }
 
         always {
-            echo 'Pipeline execution finished.'
-        }
 
+            echo '========================================='
+            echo 'Pipeline execution finished.'
+            echo '========================================='
+        }
     }
 }
