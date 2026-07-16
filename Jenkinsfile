@@ -1,37 +1,39 @@
 pipeline {
     agent any
 
+    environment {
+        PROJECT_DIR = 'D:\\Capstone'
+    }
+
     stages {
 
-        stage('Checkout Verification') {
+        stage('Checkout Source') {
             steps {
-                echo 'Source code successfully checked out.'
-                bat 'dir'
+                echo 'Checking out source code...'
             }
         }
 
-        stage('Docker Version') {
+        stage('Verify Docker') {
             steps {
                 bat 'docker --version'
                 bat 'docker compose version'
             }
         }
 
-        stage('Build Docker Images') {
+        stage('Build Images') {
             steps {
-                bat 'docker compose build'
+                dir("${env.PROJECT_DIR}") {
+                    bat 'docker compose build'
+                }
             }
         }
 
-        stage('Stop Existing Containers') {
+        stage('Deploy') {
             steps {
-                bat 'docker compose down'
-            }
-        }
-
-        stage('Deploy Application') {
-            steps {
-                bat 'docker compose up -d'
+                dir("${env.PROJECT_DIR}") {
+                    bat 'docker compose down'
+                    bat 'docker compose up -d'
+                }
             }
         }
 
@@ -40,15 +42,22 @@ pipeline {
                 bat 'docker ps'
             }
         }
+
     }
 
     post {
+
         success {
-            echo 'Application deployed successfully!'
+            echo 'Deployment completed successfully.'
         }
 
         failure {
-            echo 'Pipeline failed.'
+            echo 'Deployment failed.'
         }
+
+        always {
+            echo 'Pipeline execution finished.'
+        }
+
     }
 }
