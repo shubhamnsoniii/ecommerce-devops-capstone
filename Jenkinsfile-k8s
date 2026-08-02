@@ -1,0 +1,107 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_USER = "shubham5799"
+        PROJECT_DIR = "D:\\Capstone"
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Build Frontend') {
+            steps {
+                dir("${PROJECT_DIR}/frontend") {
+                    bat 'docker build -t %DOCKER_USER%/frontend:v1 .'
+                }
+            }
+        }
+
+        stage('Build Product') {
+            steps {
+                dir("${PROJECT_DIR}/product-service") {
+                    bat 'docker build -t %DOCKER_USER%/product-service:v1 .'
+                }
+            }
+        }
+
+        stage('Build Order') {
+            steps {
+                dir("${PROJECT_DIR}/order-service") {
+                    bat 'docker build -t %DOCKER_USER%/order-service:v1 .'
+                }
+            }
+        }
+
+        stage('Build Inventory') {
+            steps {
+                dir("${PROJECT_DIR}/inventory-service") {
+                    bat 'docker build -t %DOCKER_USER%/inventory-service:v1 .'
+                }
+            }
+        }
+
+        stage('Docker Login') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'dockerhub-creds',
+                    usernameVariable: 'DOCKER_USERNAME',
+                    passwordVariable: 'DOCKER_PASSWORD'
+                )]) {
+
+                    bat '''
+                    echo %DOCKER_PASSWORD% | docker login -u %DOCKER_USERNAME% --password-stdin
+                    '''
+                }
+            }
+        }
+
+        stage('Push Images') {
+            steps {
+
+                bat 'docker push %DOCKER_USER%/frontend:v1'
+                bat 'docker push %DOCKER_USER%/product-service:v1'
+                bat 'docker push %DOCKER_USER%/order-service:v1'
+                bat 'docker push %DOCKER_USER%/inventory-service:v1'
+
+            }
+        }
+
+        stage('Deploy To Kubernetes') {
+            steps {
+
+                bat 'kubectl rollout restart deployment frontend -n shubham-ecommerce'
+                bat 'kubectl rollout restart deployment product-service -n shubham-ecommerce'
+                bat 'kubectl rollout restart deployment order-service -n shubham-ecommerce'
+                bat 'kubectl rollout restart deployment inventory-service -n shubham-ecommerce'
+
+            }
+        }
+
+        stage('Verify Deployment') {
+            steps {
+
+                bat 'kubectl rollout status deployment frontend -n shubham-ecommerce'
+                bat 'kubectl rollout status deployment product-service -n shubham-ecommerce'
+                bat 'kubectl rollout status deployment order-service -n shubham-ecommerce'
+                bat 'kubectl rollout status deployment inventory-service -n shubham-ecommerce'
+
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "Deployment Completed Successfully."
+        }
+
+        failure {
+            echo "Deployment Failed."
+        }
+    }
+}
