@@ -12,3 +12,13 @@ node_modules/
 # OS files
 .DS_Store
 Thumbs.db
+
+node_modules/
+**/node_modules/
+
+build/
+**/build/
+
+.terraform/
+*.tfstate
+*.tfstate.*
