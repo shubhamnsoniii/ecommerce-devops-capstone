@@ -1,0 +1,40 @@
+---
+- name: Deploy Ecommerce Capstone to Kubernetes
+  hosts: kubernetes
+  become: false
+
+  tasks:
+
+    - name: Verify Kubernetes Cluster
+      command: kubectl cluster-info
+      register: cluster
+
+    - name: Show Cluster Information
+      debug:
+        var: cluster.stdout_lines
+
+    - name: Apply Namespace
+      command: kubectl apply -f /mnt/d/Capstone/k8s/namespace.yaml
+
+    - name: Apply MySQL
+      command: kubectl apply -f /mnt/d/Capstone/k8s/mysql.yaml
+
+    - name: Apply Product Service
+      command: kubectl apply -f /mnt/d/Capstone/k8s/product.yaml
+
+    - name: Apply Order Service
+      command: kubectl apply -f /mnt/d/Capstone/k8s/order.yaml
+
+    - name: Apply Inventory Service
+      command: kubectl apply -f /mnt/d/Capstone/k8s/inventory.yaml
+
+    - name: Apply Frontend
+      command: kubectl apply -f /mnt/d/Capstone/k8s/frontend.yaml
+
+    - name: Verify Pods
+      command: kubectl get pods -n shubham-ecommerce
+      register: pods
+
+    - name: Display Pods
+      debug:
+        var: pods.stdout_lines
