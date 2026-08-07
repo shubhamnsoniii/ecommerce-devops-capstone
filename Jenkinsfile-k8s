@@ -10,13 +10,14 @@ pipeline {
 
         stage('Checkout') {
             steps {
+                echo "Checking out source code..."
                 checkout scm
             }
         }
 
         stage('Build Frontend') {
             steps {
-                dir("${PROJECT_DIR}/frontend") {
+                dir("${PROJECT_DIR}\\frontend") {
                     bat 'docker build -t %DOCKER_USER%/frontend:v1 .'
                 }
             }
@@ -24,7 +25,7 @@ pipeline {
 
         stage('Build Product') {
             steps {
-                dir("${PROJECT_DIR}/product-service") {
+                dir("${PROJECT_DIR}\\product-service") {
                     bat 'docker build -t %DOCKER_USER%/product-service:v1 .'
                 }
             }
@@ -32,7 +33,7 @@ pipeline {
 
         stage('Build Order') {
             steps {
-                dir("${PROJECT_DIR}/order-service") {
+                dir("${PROJECT_DIR}\\order-service") {
                     bat 'docker build -t %DOCKER_USER%/order-service:v1 .'
                 }
             }
@@ -40,7 +41,7 @@ pipeline {
 
         stage('Build Inventory') {
             steps {
-                dir("${PROJECT_DIR}/inventory-service") {
+                dir("${PROJECT_DIR}\\inventory-service") {
                     bat 'docker build -t %DOCKER_USER%/inventory-service:v1 .'
                 }
             }
@@ -48,14 +49,29 @@ pipeline {
 
         stage('Docker Login') {
             steps {
-                withCredentials([usernamePassword(
-                    credentialsId: 'dockerhub-creds',
-                    usernameVariable: 'DOCKER_USERNAME',
-                    passwordVariable: 'DOCKER_PASSWORD'
-                )]) {
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'dockerhub-creds',
+                        usernameVariable: 'DOCKER_USERNAME',
+                        passwordVariable: 'DOCKER_PASSWORD'
+                    )
+                ]) {
 
                     bat '''
-                    echo %DOCKER_PASSWORD% | docker login -u %DOCKER_USERNAME% --password-stdin
+                    @echo off
+
+                    echo Logging out from Docker...
+                    docker logout
+
+                    echo Logging into Docker Hub...
+                    echo %DOCKER_PASSWORD% | docker login --username %DOCKER_USERNAME% --password-stdin
+
+                    if %ERRORLEVEL% NEQ 0 (
+                        echo Docker login failed!
+                        exit /b 1
+                    )
+
+                    echo Docker login successful.
                     '''
                 }
             }
@@ -68,40 +84,46 @@ pipeline {
                 bat 'docker push %DOCKER_USER%/product-service:v1'
                 bat 'docker push %DOCKER_USER%/order-service:v1'
                 bat 'docker push %DOCKER_USER%/inventory-service:v1'
-
             }
         }
 
-        stage('Deploy To Kubernetes') {
+        stage('Restart Kubernetes Deployments') {
             steps {
 
-                bat 'kubectl rollout restart deployment frontend -n shubham-ecommerce'
-                bat 'kubectl rollout restart deployment product-service -n shubham-ecommerce'
-                bat 'kubectl rollout restart deployment order-service -n shubham-ecommerce'
-                bat 'kubectl rollout restart deployment inventory-service -n shubham-ecommerce'
-
+                bat 'kubectl rollout restart deployment/frontend -n shubham-ecommerce'
+                bat 'kubectl rollout restart deployment/product-service -n shubham-ecommerce'
+                bat 'kubectl rollout restart deployment/order-service -n shubham-ecommerce'
+                bat 'kubectl rollout restart deployment/inventory-service -n shubham-ecommerce'
             }
         }
 
-        stage('Verify Deployment') {
+        stage('Verify Rollout') {
             steps {
 
-                bat 'kubectl rollout status deployment frontend -n shubham-ecommerce'
-                bat 'kubectl rollout status deployment product-service -n shubham-ecommerce'
-                bat 'kubectl rollout status deployment order-service -n shubham-ecommerce'
-                bat 'kubectl rollout status deployment inventory-service -n shubham-ecommerce'
-
+                bat 'kubectl rollout status deployment/frontend -n shubham-ecommerce'
+                bat 'kubectl rollout status deployment/product-service -n shubham-ecommerce'
+                bat 'kubectl rollout status deployment/order-service -n shubham-ecommerce'
+                bat 'kubectl rollout status deployment/inventory-service -n shubham-ecommerce'
             }
         }
     }
 
     post {
+
         success {
+            echo "========================================="
             echo "Deployment Completed Successfully."
+            echo "========================================="
         }
 
         failure {
+            echo "========================================="
             echo "Deployment Failed."
+            echo "========================================="
+        }
+
+        always {
+            echo "Pipeline Finished."
         }
     }
 }
