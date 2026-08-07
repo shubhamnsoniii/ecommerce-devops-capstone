@@ -60,18 +60,17 @@ pipeline {
                     bat '''
                     @echo off
 
-                    echo Logging out from Docker...
-                    docker logout
-
-                    echo Logging into Docker Hub...
-                    echo %DOCKER_PASSWORD% | docker login --username %DOCKER_USERNAME% --password-stdin
-
-                    if %ERRORLEVEL% NEQ 0 (
-                        echo Docker login failed!
-                        exit /b 1
-                    )
-
-                    echo Docker login successful.
+                    echo Username=%DOCKER_USERNAME%
+					if "%DOCKER_PASSWORD%"=="" (
+						echo PASSWORD IS EMPTY
+						exit /b 1
+					) else (
+						echo PASSWORD EXISTS
+					)
+                    
+					docker logout
+					
+					echo %DOCKER_PASSWORD% | docker login --username %DOCKER_USERNAME% --password-stdin
                     '''
                 }
             }
