@@ -1,0 +1,89 @@
+PS D:\Capstone> docker compose config
+name: capstone
+services:
+  frontend:
+    build:
+      context: D:\Capstone\frontend
+      dockerfile: Dockerfile
+    depends_on:
+      inventory-service:
+        condition: service_started
+        required: true
+      order-service:
+        condition: service_started
+        required: true
+      product-service:
+        condition: service_started
+        required: true
+    networks:
+      default: null
+    ports:
+      - mode: ingress
+        target: 3000
+        published: "3001"
+        protocol: tcp
+  inventory-service:
+    build:
+      context: D:\Capstone\inventory-service
+      dockerfile: Dockerfile
+    depends_on:
+      mysql:
+        condition: service_started
+        required: true
+    networks:
+      default: null
+    ports:
+      - mode: ingress
+        target: 5002
+        published: "5002"
+        protocol: tcp
+  mysql:
+    environment:
+      MYSQL_DATABASE: ecommerce
+      MYSQL_ROOT_PASSWORD: root
+    image: mysql:8
+    networks:
+      default: null
+    ports:
+      - mode: ingress
+        target: 3306
+        published: "3306"
+        protocol: tcp
+    volumes:
+      - type: bind
+        source: D:\Capstone\mysql-init
+        target: /docker-entrypoint-initdb.d
+        bind: {}
+  order-service:
+    build:
+      context: D:\Capstone\order-service
+      dockerfile: Dockerfile
+    depends_on:
+      mysql:
+        condition: service_started
+        required: true
+    networks:
+      default: null
+    ports:
+      - mode: ingress
+        target: 5001
+        published: "5001"
+        protocol: tcp
+  product-service:
+    build:
+      context: D:\Capstone\product-service
+      dockerfile: Dockerfile
+    depends_on:
+      mysql:
+        condition: service_started
+        required: true
+    networks:
+      default: null
+    ports:
+      - mode: ingress
+        target: 5000
+        published: "5000"
+        protocol: tcp
+networks:
+  default:
+    name: capstone_default
