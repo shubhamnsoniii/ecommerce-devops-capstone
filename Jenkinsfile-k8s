@@ -10,7 +10,10 @@ pipeline {
 
         stage('Checkout') {
             steps {
+                echo "========================================="
                 echo "Checking out source code..."
+                echo "========================================="
+
                 checkout scm
             }
         }
@@ -47,46 +50,142 @@ pipeline {
             }
         }
 
-        stage('Docker Login') {
+        stage('Docker Hub Authentication & Push') {
             steps {
+
                 withCredentials([
                     usernamePassword(
-                        credentialsId: 'dockerhub-creds',
+                        credentialsId: 'dockerhub-pat-jenkins',
                         usernameVariable: 'DOCKER_USERNAME',
                         passwordVariable: 'DOCKER_PASSWORD'
                     )
                 ]) {
 
                     powershell '''
-						docker logout
 
-						$env:DOCKER_PASSWORD | docker login `
-							--username $env:DOCKER_USERNAME `
-							--password-stdin
-						
-						if ($LASTEXITCODE -ne 0) {
-							Write-Error "Docker login failed."
-							exit 1
-						}
-						
-						Write-Host "Docker login successful."					
+                        $configDir = "$env:WORKSPACE\\.docker-auth"
+
+                        Write-Host "========================================="
+                        Write-Host "Preparing temporary Docker authentication"
+                        Write-Host "========================================="
+
+                        # Remove previous temporary credentials
+                        if (Test-Path $configDir) {
+                            Remove-Item $configDir -Recurse -Force
+                        }
+
+                        New-Item `
+                            -ItemType Directory `
+                            -Path $configDir `
+                            -Force | Out-Null
+
+                        # Create Docker authentication string
+                        $authString = "$env:DOCKER_USERNAME`:$env:DOCKER_PASSWORD"
+
+                        $authBytes = [System.Text.Encoding]::UTF8.GetBytes($authString)
+
+                        $authBase64 = [Convert]::ToBase64String($authBytes)
+
+                        # Create Docker config
+                        $config = @{
+                            auths = @{
+                                "https://index.docker.io/v1/" = @{
+                                    auth = $authBase64
+                                }
+                            }
+                        }
+
+                        $configJson = $config | ConvertTo-Json -Depth 5
+
+                        # Write UTF-8 WITHOUT BOM
+                        $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+
+                        [System.IO.File]::WriteAllText(
+                            "$configDir\\config.json",
+                            $configJson,
+                            $utf8NoBom
+                        )
+
+                        $env:DOCKER_CONFIG = $configDir
+
+                        Write-Host "Docker authentication configured."
+                        Write-Host ""
+                        Write-Host "Testing Docker Hub access..."
+
+                        docker pull "$env:DOCKER_USERNAME/product-service:v1"
+
+                        if ($LASTEXITCODE -ne 0) {
+                            throw "Docker Hub authentication test failed."
+                        }
+
+                        Write-Host ""
+                        Write-Host "Docker Hub authentication successful."
+                        Write-Host ""
+
+                        Write-Host "========================================="
+                        Write-Host "Pushing Frontend Image"
+                        Write-Host "========================================="
+
+                        docker push "$env:DOCKER_USERNAME/frontend:v1"
+
+                        if ($LASTEXITCODE -ne 0) {
+                            throw "Frontend image push failed."
+                        }
+
+                        Write-Host ""
+                        Write-Host "========================================="
+                        Write-Host "Pushing Product Image"
+                        Write-Host "========================================="
+
+                        docker push "$env:DOCKER_USERNAME/product-service:v1"
+
+                        if ($LASTEXITCODE -ne 0) {
+                            throw "Product image push failed."
+                        }
+
+                        Write-Host ""
+                        Write-Host "========================================="
+                        Write-Host "Pushing Order Image"
+                        Write-Host "========================================="
+
+                        docker push "$env:DOCKER_USERNAME/order-service:v1"
+
+                        if ($LASTEXITCODE -ne 0) {
+                            throw "Order image push failed."
+                        }
+
+                        Write-Host ""
+                        Write-Host "========================================="
+                        Write-Host "Pushing Inventory Image"
+                        Write-Host "========================================="
+
+                        docker push "$env:DOCKER_USERNAME/inventory-service:v1"
+
+                        if ($LASTEXITCODE -ne 0) {
+                            throw "Inventory image push failed."
+                        }
+
+                        Write-Host ""
+                        Write-Host "========================================="
+                        Write-Host "All Docker images pushed successfully."
+                        Write-Host "========================================="
+
+                        # Remove temporary Docker credentials
+                        if (Test-Path $configDir) {
+                            Remove-Item $configDir -Recurse -Force
+                        }
+
                     '''
                 }
             }
         }
 
-        stage('Push Images') {
-            steps {
-
-                bat 'docker push %DOCKER_USER%/frontend:v1'
-                bat 'docker push %DOCKER_USER%/product-service:v1'
-                bat 'docker push %DOCKER_USER%/order-service:v1'
-                bat 'docker push %DOCKER_USER%/inventory-service:v1'
-            }
-        }
-
         stage('Restart Kubernetes Deployments') {
             steps {
+
+                echo "========================================="
+                echo "Restarting Kubernetes Deployments"
+                echo "========================================="
 
                 bat 'kubectl rollout restart deployment/frontend -n shubham-ecommerce'
                 bat 'kubectl rollout restart deployment/product-service -n shubham-ecommerce'
@@ -98,10 +197,26 @@ pipeline {
         stage('Verify Rollout') {
             steps {
 
+                echo "========================================="
+                echo "Verifying Kubernetes Rollouts"
+                echo "========================================="
+
                 bat 'kubectl rollout status deployment/frontend -n shubham-ecommerce'
                 bat 'kubectl rollout status deployment/product-service -n shubham-ecommerce'
                 bat 'kubectl rollout status deployment/order-service -n shubham-ecommerce'
                 bat 'kubectl rollout status deployment/inventory-service -n shubham-ecommerce'
+            }
+        }
+
+        stage('Verify Pods') {
+            steps {
+
+                echo "========================================="
+                echo "Final Kubernetes Status"
+                echo "========================================="
+
+                bat 'kubectl get pods -n shubham-ecommerce'
+                bat 'kubectl get svc -n shubham-ecommerce'
             }
         }
     }
@@ -109,18 +224,27 @@ pipeline {
     post {
 
         success {
+            echo ""
             echo "========================================="
-            echo "Deployment Completed Successfully."
+            echo "DEPLOYMENT COMPLETED SUCCESSFULLY"
+            echo "========================================="
+            echo "Docker images pushed to Docker Hub."
+            echo "Kubernetes deployments restarted."
+            echo "Kubernetes rollout verified."
             echo "========================================="
         }
 
         failure {
+            echo ""
             echo "========================================="
-            echo "Deployment Failed."
+            echo "DEPLOYMENT FAILED"
+            echo "========================================="
+            echo "Check the failed stage in the Jenkins console."
             echo "========================================="
         }
 
         always {
+            echo ""
             echo "Pipeline Finished."
         }
     }
