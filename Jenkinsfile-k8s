@@ -57,20 +57,19 @@ pipeline {
                     )
                 ]) {
 
-                    bat '''
-                    @echo off
+                    powershell '''
+						docker logout
 
-                    echo Username=%DOCKER_USERNAME%
-					if "%DOCKER_PASSWORD%"=="" (
-						echo PASSWORD IS EMPTY
-						exit /b 1
-					) else (
-						echo PASSWORD EXISTS
-					)
-                    
-					docker logout
-					
-					echo %DOCKER_PASSWORD% | docker login --username %DOCKER_USERNAME% --password-stdin
+						$env:DOCKER_PASSWORD | docker login `
+							--username $env:DOCKER_USERNAME `
+							--password-stdin
+						
+						if ($LASTEXITCODE -ne 0) {
+							Write-Error "Docker login failed."
+							exit 1
+						}
+						
+						Write-Host "Docker login successful."					
                     '''
                 }
             }
